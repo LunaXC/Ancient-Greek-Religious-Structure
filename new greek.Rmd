@@ -1,0 +1,98 @@
+---
+editor_options:
+  chunk_output_type: inline
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+## Ancient Greece Archaeology Analysis
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = F)
+library(xlsx)
+library(ggplot2)
+library(pander)
+```
+
+### Introduction
+   Our client, Natalie Susmann from the Archaeology department, seeks to investigate whether the ancient Greeks' use of natural topographic features differs across various types of religious structures. In the study below we use three dependent variables: elevation_means, cvso_deg_vis, cvso_visbyarea. These three variables are topography related characeristics that are measured for each of 300 Ancient Greek religious structures. The independent variable is the place type. We use only one level of this variables (level 2) since the other two levels are either too coarse to be useful (level 1) or too fine (level 3). We use linear regression to assess the relationship of place type on each of our dependent variables. 
+
+```{r data_cleaning}
+arc = read.xlsx2("Query_MSSP_CVSO_Elevation_PlaceType.xlsx", sheetIndex = 1)
+arc$cvso_visbyarea = as.numeric(as.character(arc$cvso_visbyarea))
+arc$cvso_deg_vis = as.numeric(as.character(arc$cvso_deg_vis))
+arc$elevation_mean = as.numeric(as.character(arc$elevation_mean))
+arc = droplevels(arc)
+```
+
+### Exploratory Data Analysis (EDA)  
+
+We first plot the distribution of the dependent variables with the place type 2. We choose the place type 2 here for the plot because place type 1 has two levels and place type 3 has 26 levels, and both of them cannot make informative graphs as x axis.
+
+1. Visibility by area and Place_type_2
+```{r}
+ggplot(arc, aes(x = log(cvso_visbyarea + 1), fill = place_type_2)) +
+  geom_histogram(position="dodge") + 
+  facet_grid(place_type_2 ~ .) + 
+  xlab("Visibility by Area") + ylab("Count")
+```
+
+From the plot, it seems that "Feature" and "Space" share similar visibility by area, while the "Burial" has slightly higher visibility by area.  
+
+2. Visibility by possible observer points and Place_type_2
+```{r}
+ggplot(arc, aes(x = log(cvso_deg_vis + 1), fill = place_type_2)) +
+  geom_histogram(position="dodge") + 
+  facet_grid(place_type_2 ~ .) + 
+  xlab("Visibility by Possible Observer Points") + ylab("Count")
+```
+
+In this plot, the distribution of the visibility by possible observer points helps to capture the nature environment around the structure, since the obstacles in sight around the structure influence the visibility by possible observer points. The differences among distributions in the plot suggest the various topography of the structures.  
+
+3. Elevation mean and Place_type_2
+```{r}
+ggplot(arc, aes(x = log(elevation_mean + 1), fill = place_type_2)) +
+  geom_histogram(position="dodge") + 
+  facet_grid(place_type_2 ~ .) + 
+  xlab("Mean Elevation of the Structure") + ylab("Count")
+```
+
+The last plot shows the distribution of the mean elevation for each structure facet by place_type_2. Based on this plot, both "Burial" and "Feature" structures have two major mean elevations at around 3.7 and 5.5.  
+\
+For all the plots above, since there are too few data points for the "Landform" and "Water Body", it is hard to conclude the findings about the differences in their distributions from others just from the plots.  
+\
+\
+
+### Statistical Analysis: Linear Regression
+
+In order to further assess the relationship among our variables, we fit three linear models to see if there is any relationship between visibility by area, visibility by possible observer points, elevation mean and Place type 2.
+
+1. Visibility by area and Place_type_2
+```{r}
+# set reference level to "Feature"
+arc$place_type_2 <- factor(arc$place_type_2, levels=c("Feature", "Space", "Burial", "Landform", "Water Body")) 
+
+# fit model
+m1 <- lm(log(arc$cvso_visbyarea+1) ~ arc$place_type_2, data = arc)
+pander(summary(m1))
+```
+
+From the results, we can see that Feature has significantly different average visibility by area comparing to Burial and Water Body at significance level of 0.05. However, since there are only two observation points for Water Body, it vialiates the assumption for linear regression, which is constant variance. Thus, we can draw conclusion that in regards to visibility by area, Feature has a significantly higher average visibility by area than Burial.
+
+2. Elevation mean and Place_type_2
+```{r}
+# fit model
+m2 <- lm(log(arc$elevation_mean+1.01) ~ arc$place_type_2, data = arc)
+pander(summary(m2))
+```
+The results show that Feature has significantly different average elevation to Water body. Based on the same reason we stated above, since Water body only has two observation points, the result don't has any practical meaning. Thus, we concluded that the five place types are not significantly different to each other as of evevaltion mean.
+
+3. Visibility by possible observer points and Place_type_2
+```{r}
+# fit model
+m3 <- lm(arc$cvso_deg_vis ~ arc$place_type_2, data = arc)
+pander(summary(m3))
+```
+Based on the result, Feature has significantly lower average visibility by possible observer points comparing to Space. Therefore, on average, there are more obstacles around place type of Feature than Space.
